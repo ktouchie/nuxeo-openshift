@@ -1,0 +1,120 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  annotations:
+    pipeline.alpha.openshift.io/uses: '[{"name": "${NAME}", "namespace": "", "kind": "DeploymentConfig"}]'
+  labels:
+    name: qa-pipeline
+  name: qa-pipeline
+  namespace: ${NAMESPACE}
+  selfLink: /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/qa-pipeline
+spec:
+  nodeSelector: {}
+  output: {}
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    type: None
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfile: |-
+        try {
+            timeout(time: 20, unit: 'MINUTES') {
+                def appName = "qa-app"
+                def repo = "${GITHUB_URL}"
+                def project = ""
+                def packagePathRegExp = ""
+                node {
+                    stage("Initialize") {
+                        project = env.PROJECT_NAME
+                        dir(env.JENKINS_HOME + "/configuration") {
+                            def files = findFiles(glob: "**/settings.xml")
+                            if (files.length == 0) {
+                                echo "Maven settings file not found."
+                            }
+                            stash name:"mavenSettings", includes:"${files[0]}"
+                        }
+                    }
+                  }
+                node("maven") {
+                    stage("Checkout Repository") {
+                      git url: "git@github.com:nuxeo-projects/${repo}.git",
+                      credentialsId: "${project}-github-ssh",
+                      branch: "master"
+                    }
+                    stage("Build Nuxeo Package") {
+                        withMaven() {
+                            withCredentials([
+                                usernamePassword(
+                                    credentialsId: "${project}-studio-username-password",
+                                    usernameVariable: "NUXEO_CONNECT_USERNAME",
+                                    passwordVariable: "NUXEO_CONNECT_PASSWORD"
+                                )
+                            ]) {
+                                unstash name: "mavenSettings"
+                                def mavenSettings = findFiles(glob: "**/settings.xml")[0]
+                                sh "mvn --settings ${mavenSettings.path} clean package"
+                                if (fileExists(".nuxeo-s2i")) {
+                                    def props = readProperties file: ".nuxeo-s2i"
+                                    packagePathRegExp = props["NUXEO_PACKAGE_DIR"]
+                                } else {
+                                    packagePathRegExp = "*(marketplace|package)-*.zip"
+                                }
+                                def files = findFiles(glob: "**/${packagePathRegExp}")
+                                if (files.length == 0) {
+                                    echo "Marketplace zip file not found."
+                                }
+                                stash name:"marketplace", includes:"${files[0]}"
+                            }
+                        }
+                    }
+                  }
+                node {
+                    stage("Build Image") {
+                        unstash name: "marketplace"
+                        def files = findFiles(glob: "**/${packagePathRegExp}")
+                        if (files.length == 0) {
+                            echo "Marketplace zip file not found."
+                        }
+                        if (fileExists("source")) {
+                            sh "rm -rf source"
+                        }
+                        sh "mkdir -p source"
+                        fileOperations([
+                            fileCopyOperation(
+                                includes: "${files[0].path}",
+                                targetLocation: "source",
+                                flattenFiles: true,
+                            ),
+                            fileRenameOperation(
+                                source: "source/${files[0].name}",
+                                destination: "source/marketplace.zip"
+                            ),
+                            fileDownloadOperation(
+                                url: "https://raw.githubusercontent.com/nuxeo-sandbox/nuxeo-s2i/9.10/contrib/install.sh",
+                                userName: "",
+                                password: "",
+                                targetLocation: "source",
+                                targetFileName: "install.sh"
+                            )
+                        ])
+                        sh "oc start-build qa-app-build --from-dir='source' -n ${project}"
+                        openshiftVerifyBuild bldCfg: "qa-app-build", namespace: project, waitTime: '20', waitUnit: 'min'
+                    }
+                    // stage("Deploy Image") {
+                    //    openshiftDeploy deploymentConfig: appName, namespace: project
+                    // }
+                }
+            }
+        } catch (err) {
+           echo "in catch block"
+           echo "Caught: ${err}"
+           currentBuild.result = 'FAILURE'
+           throw err
+        }
+    type: JenkinsPipeline
+  triggers:
+    - github:
+        secret: ***
+      type: GitHub

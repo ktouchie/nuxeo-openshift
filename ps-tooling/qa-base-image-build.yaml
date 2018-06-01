@@ -1,0 +1,43 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: ${APPLICATION_NAME}
+    component: build
+  name: qa-base-image-build
+  namespace: ${NAMESPACE}
+  resourceVersion: '26480778'
+  selfLink: >-
+    /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/qa-base-image-build
+spec:
+  failedBuildsHistoryLimit: 5
+  nodeSelector: null
+  output:
+    to:
+      kind: ImageStreamTag
+      name: 'qa-base-image:latest'
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    dockerfile: |-
+      FROM nuxeo:${VERSION}
+      USER root
+
+      # Reinstall ImageMagick with the RSVG delegate
+      RUN apt-get update && \
+          apt-get remove -y imagemagick && \
+          apt-get install -y --no-install-recommends librsvg2-bin && \
+          apt-get install -y imagemagick && \
+          apt-get install -y --no-install-recommends vim && \
+          wget http://apt.nuxeo.org/pool/releases/ffmpeg-nuxeo_2.8.5-1_amd64.deb && \
+          dpkg -i ffmpeg-nuxeo_2.8.5-1_amd64.deb && \
+          rm -f ffmpeg-nuxeo_2.8.5-1_amd64.deb
+          echo Finished
+      USER 1000
+    type: Dockerfile
+  strategy:
+    dockerStrategy: {}
+    type: Docker
+  successfulBuildsHistoryLimit: 5
+  triggers: []

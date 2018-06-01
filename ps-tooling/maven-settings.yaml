@@ -1,0 +1,18 @@
+apiVersion: v1
+data:
+  MAVEN_SETTINGS: |-
+    <?xml version='1.0' encoding='UTF-8'?>
+    <settings>
+      <servers>
+        <server>
+          <id>nuxeo-studio</id>
+          <username>${env.NUXEO_CONNECT_USERNAME}</username>
+          <password>${env.NUXEO_CONNECT_PASSWORD}</password>
+        </server>
+      </servers>
+    </settings>
+kind: ConfigMap
+metadata:
+  name: maven-settings
+  namespace: ${NAMESPACE}
+  selfLink: /api/v1/namespaces/${NAMESPACE}/configmaps/maven-settings
