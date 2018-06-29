@@ -6,7 +6,6 @@ metadata:
     component: build
   name: qa-base-image-build
   namespace: ${NAMESPACE}
-  resourceVersion: '26480778'
   selfLink: >-
     /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/qa-base-image-build
 spec:

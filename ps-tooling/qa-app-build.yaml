@@ -2,7 +2,7 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    app: qa-app-build
+    app: ${APPLICATION_NAME}
   name: qa-app-build
   namespace: ${NAMESPACE}
   selfLink: /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/qa-app-build

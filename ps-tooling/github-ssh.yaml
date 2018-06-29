@@ -2,7 +2,7 @@ apiVersion: v1
 data:
   ssh-privatekey: >-
     ***
-  kind: Secret
+kind: Secret
 metadata:
   labels:
   	app: ${APPLICATION_NAME}
