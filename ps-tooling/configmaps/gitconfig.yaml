@@ -1,0 +1,9 @@
+apiVersion: v1
+data:
+  user.email: openshift_jenkins@nuxeo.com
+  user.name: OpenshiftJenkins
+kind: ConfigMap
+metadata:
+  name: gitconfig
+  namespace: ${NAMESPACE}
+  selfLink: /api/v1/namespaces/${NAMESPACE}/configmaps/gitconfig

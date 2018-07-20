@@ -1,0 +1,129 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  annotations:
+    pipeline.alpha.openshift.io/uses: '[{"name": "${NAME}", "namespace": "", "kind": "DeploymentConfig"}]'
+  labels:
+    name: release-python-pipeline
+  name: release-python-pipeline
+  namespace: ${NAMESPACE}
+  selfLink: >-
+    /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/release-python-pipeline
+spec:
+  nodeSelector: {}
+  output: {}
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    type: None
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfile: |-
+        try {
+            timeout(time: 20, unit: 'MINUTES') {
+                def REPOSITORY = ""
+                def PROJECT = ""
+                def GIT_USER_NAME = ""
+                def GIT_USER_EMAIL = ""
+                def SSH_KEY = ""
+                def INSTANCE_CLID = ""
+                def HOME_JENKINS = ""
+
+                node {
+                    stage("Initialize") {
+                        REPOSITORY = "${GITHUB_URL}"
+                        PROJECT = env.PROJECT_NAME
+                        GIT_USER_NAME = env.GIT_USER_NAME
+                        GIT_USER_EMAIL = env.GIT_USER_EMAIL
+                        SSH_KEY = env.GIT_SSH_KEY
+                        INSTANCE_CLID = env.INSTANCE_CLID
+                        HOME_JENKINS = "/home/jenkins"
+
+                        dir("/var/lib/jenkins/configuration") {
+                            def files = findFiles(glob: "**/settings.xml")
+                            if (files.length == 0) {
+                                echo "Maven settings file not found."
+                            }
+                            stash name:"mavenSettings", includes:"${files[0]}"
+                        }
+                    }
+                }
+                node("jenkins-slave") {
+                    stage("Checkout Repository") {
+                      git url: "git@github.com:nuxeo-projects/${REPOSITORY}.git",
+                      credentialsId: "${PROJECT}-github-ssh",
+                      branch: "master"
+                    }
+                    stage("Setup workspace") {
+                        // Put instance.clid in ftests resources
+                        def ftests = findFiles(glob: "**/ftest/**/itests.xml")
+                        def clid = findFiles(glob: "**/ftest/**/instance.clid")
+                        if (ftests.length > 0) {
+                            def itestsPath = ftests[0].path
+                            def clidPath = itestsPath.replace("itests.xml", "src/main/resources/instance.clid")
+                            fileOperations([
+                                fileCreateOperation(
+                                    fileName: "${clidPath}",
+                                    fileContent: "${INSTANCE_CLID}"
+                                )
+                            ])
+                        }
+
+                        // Put SSH key in .ssh/
+                        fileOperations([
+                            fileCreateOperation(
+                                fileName: "${HOME_JENKINS}/.ssh/id_rsa",
+                                fileContent: "${SSH_KEY}"
+                            )
+                        ])
+                        sh "chmod 600 ${HOME_JENKINS}/.ssh/id_rsa"
+
+                        // Put maven settings in .m2/
+                        unstash name: "mavenSettings"
+                        def mavenSettings = findFiles(glob: "**/settings.xml")[0]
+                        sh "mv ${mavenSettings.path} ${HOME_JENKINS}/.m2/settings.xml"
+
+                        // Setup git config
+                        sh "git config --global user.name ${GIT_USER_NAME}"
+                        sh "git config --global user.email ${GIT_USER_EMAIL}"
+                    }
+                    stage("Build Release") {
+                        withCredentials([
+                            usernamePassword(
+                                credentialsId: "${PROJECT}-system-credentials",
+                                usernameVariable: "SYSTEM_USERNAME",
+                                passwordVariable: "SYSTEM_PASSWORD"
+                            )
+                        ]) {
+                            // Download release script and put SSH key file in .ssh/
+                            def operations = []
+                            def files = ["release.py", "requirements.txt", "IndentedHelpFormatterWithNL.py", "nxutils.py", "terminalsize.py"]
+                            files.each { file -> operations.add(
+                                fileDownloadOperation(
+                                    url: "https://raw.githubusercontent.com/nuxeo/nuxeo/master/scripts/${file}",
+                                    userName: "",
+                                    password: "",
+                                    targetLocation: "",
+                                    targetFileName: "${file}"
+                                )
+                            )}
+                            fileOperations(operations)
+
+                            // Launch release
+                            withMaven() {
+                                sh "python ./release.py -f prepare"
+                                sh "python ./release.py perform"
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+           echo "in catch block"
+           echo "Caught: ${err}"
+           currentBuild.result = 'FAILURE'
+           throw err
+        }
+    type: JenkinsPipeline
+  triggers: []

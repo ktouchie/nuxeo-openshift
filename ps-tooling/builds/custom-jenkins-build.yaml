@@ -1,0 +1,39 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    component: build
+  name: custom-jenkins-build
+  namespace: ${NAMESPACE}
+  selfLink: >-
+    /apis/build.openshift.io/v1/namespaces/${NAMESPACE}/buildconfigs/custom-jenkins-build
+spec:
+  failedBuildsHistoryLimit: 5
+  nodeSelector: null
+  output:
+    to:
+      kind: ImageStreamTag
+      name: 'custom-jenkins-image:latest'
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    dockerfile: >-
+      FROM docker.io/openshift/jenkins-agent-maven-35-centos7:v3.11
+
+      USER root
+
+      RUN yum -y install
+      http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+      && \
+          yum -y install git
+      USER 1000
+    secrets:
+      - secret:
+          name: github-ssh
+    type: Dockerfile
+  strategy:
+    dockerStrategy: {}
+    type: Docker
+  successfulBuildsHistoryLimit: 5
+  triggers: []

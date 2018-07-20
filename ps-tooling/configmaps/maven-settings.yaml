@@ -9,6 +9,16 @@ data:
           <username>${env.NUXEO_CONNECT_USERNAME}</username>
           <password>${env.NUXEO_CONNECT_PASSWORD}</password>
         </server>
+        <server>
+          <id>public-releases</id>
+          <username>${env.SYSTEM_USERNAME}</username>
+          <password>${env.SYSTEM_PASSWORD}</password>
+        </server>
+        <server>
+          <id>internal-releases</id>
+          <username>${env.SYSTEM_USERNAME}</username>
+          <password>${env.SYSTEM_PASSWORD}</password>
+        </server>
       </servers>
     </settings>
 kind: ConfigMap

@@ -43,6 +43,26 @@ spec:
               value: >-
                 maven-plugin, pipeline-maven, file-operations,
                 apache-httpcomponents-client-4-api, junit-attachments, tasks
+            - name: GIT_USER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: user.name
+                  name: gitconfig
+            - name: GIT_USER_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: user.email
+                  name: gitconfig
+            - name: GIT_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: ssh-privatekey
+                  name: github-ssh
+            - name: INSTANCE_CLID
+              valueFrom:
+                secretKeyRef:
+                  key: instance.clid
+                  name: instance.clid
           image: >-
             docker.io/openshift/jenkins-2-centos7@sha256:59b9b12acf8e048186fac8c9fce2759a4d7883fb1b1be33a778d236b573f720d
           imagePullPolicy: IfNotPresent

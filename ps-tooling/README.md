@@ -36,14 +36,17 @@ As a starting point, this folder gathers the YAML scripts to use to build this t
 
 **Services:**
 
-- a Jenkins service: It is based on the jenkins-ephemeral-template, uses additional plugins (maven-plugin, pipeline-maven, file-operations...) and specific maven settings
+- a Jenkins service: It is based on the jenkins-ephemeral-template, uses additional plugins (maven-plugin, pipeline-maven, file-operations...), specific maven settings and git version.
 
 **Resources:**
 
 - a Config Map for Maven settings
+- a Config Map for Git config
 - a Secret for Github SSH key
 - a Secret for Connect Credentials
 - a Secret for Studio username and password
+- a Secret for System username and password
+- a Secret for instance.clid file
 
 **Images and builds:**
 
@@ -56,9 +59,8 @@ As a starting point, this folder gathers the YAML scripts to use to build this t
 
 - a CI/CD pipeline: It defines a Github webhook, it checks out a Github repository (with Github credentials), runs a Maven build (with Maven settings and Studio credentials), generates a marketplace package zip, launches the app image Docker build, deploys the output image to DEV (and UAT) environment. *(In the future: it may include functional testing)*
 
-- *In the future: a release pipeline*
+- a release pipeline: It checks out a Github repository (with Github credentials), sets up the Jenkins workspace (by handling maven settings, ssh key, instance.clid, gitconfig), downloads the Nuxeo Devtools python release script (and its required resources), launches a release prepare and release perform.
 
- 
 ## JIRA
 
 See [https://jira.nuxeo.com/browse/NXCT-57](https://jira.nuxeo.com/browse/NXCT-57) for status and more details.
