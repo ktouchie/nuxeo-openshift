@@ -1,11 +1,19 @@
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
+  annotations:
+    role: jenkins-slave
+    slave-label: jenkins-slave
+  generation: 1
+  labels:
+    app: jenkins
+    jenkins: slave
+    jenkins/maven: 'true'
+    role: jenkins-slave
   name: custom-jenkins-image
   namespace: ${NAMESPACE}
-  selfLink: /apis/image.openshift.io/v1/namespaces/${NAMESPACE}/imagestreams/custom-jenkins-image
+  selfLink: >-
+    /apis/image.openshift.io/v1/namespaces/${NAMESPACE}/imagestreams/custom-jenkins-image
 spec:
   lookupPolicy:
     local: false
-status:
-  dockerImageRepository: 'docker-registry.default.svc:5000/${NAMESPACE}/custom-jenkins-image'

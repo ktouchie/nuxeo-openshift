@@ -36,7 +36,9 @@ As a starting point, this folder gathers the YAML scripts to use to build this t
 
 **Services:**
 
-- a Jenkins service: It is based on the jenkins-ephemeral-template, uses additional plugins (maven-plugin, pipeline-maven, file-operations...), specific maven settings and git version.
+- a Jenkins service: It is based on the jenkins-ephemeral-template, uses additional plugins (maven-plugin, pipeline-maven, file-operations...), specific maven settings and git version. A route is exposed.
+
+- a Nexus service: It is based on sonatype/nexus and has a volume claim. A route is exposed.
 
 **Resources:**
 
@@ -45,7 +47,7 @@ As a starting point, this folder gathers the YAML scripts to use to build this t
 - a Secret for Github SSH key
 - a Secret for Connect Credentials
 - a Secret for Studio username and password
-- a Secret for System username and password
+- a Secret for Nexus username and password
 - a Secret for instance.clid file
 
 **Images and builds:**
@@ -54,12 +56,16 @@ As a starting point, this folder gathers the YAML scripts to use to build this t
 - a base image Docker build: It takes as input the base image, then it installs librairies (imagemagick...)
 - an app image Docker build: It takes as input the previously built Nuxeo image as well as a marketplace package zip, then it installs the marketplace package on the Nuxeo image
 - a Docker app Image: The output final image that will have the marketplace package installed and that will be deployed
+- a custom Jenkins Docker buid: It is based on jenkins-agent-maven-35-centos7:v3.11. It includes maven and installs a recent Git version.
+- a custom Docker Jenkins image: The output Jenkins image, with maven and a recent Git version.
+- a Nexus image: The Nexus repository image, where the released artifacts are deployed.
 
 **Pipelines:**
 
 - a CI/CD pipeline: It defines a Github webhook, it checks out a Github repository (with Github credentials), runs a Maven build (with Maven settings and Studio credentials), generates a marketplace package zip, launches the app image Docker build, deploys the output image to DEV (and UAT) environment. *(In the future: it may include functional testing)*
 
-- a release pipeline: It checks out a Github repository (with Github credentials), sets up the Jenkins workspace (by handling maven settings, ssh key, instance.clid, gitconfig), downloads the Nuxeo Devtools python release script (and its required resources), launches a release prepare and release perform.
+- a release pipeline: It checks out a Github repository (with Github credentials), sets up the Jenkins workspace (by handling maven settings, ssh key, instance.clid, gitconfig...), downloads the Nuxeo Devtools python release script (and its required resources), launches a release prepare and release perform, deploys artifacts to a Nexus docker image.
+
 
 ## JIRA
 
@@ -69,5 +75,4 @@ See [https://jira.nuxeo.com/browse/NXCT-57](https://jira.nuxeo.com/browse/NXCT-5
 ## Contributors
 
 Estele Giuly (egiuly@nuxeo.com)
-
 

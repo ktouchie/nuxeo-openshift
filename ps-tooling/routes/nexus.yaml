@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    openshift.io/host.generated: 'true'
+  labels:
+    app: nexus
+  name: nexus
+  namespace: ${NAMESPACE}
+  selfLink: /apis/route.openshift.io/v1/namespaces/${NAMESPACE}/routes/nexus
+spec:
+  host: nexus-${NAMESPACE}.apps.dev.nuxeo.io
+  port:
+    targetPort: 8081-tcp
+  to:
+    kind: Service
+    name: nexus
+    weight: 100
+  wildcardPolicy: None

@@ -10,16 +10,19 @@ data:
           <password>${env.NUXEO_CONNECT_PASSWORD}</password>
         </server>
         <server>
-          <id>public-releases</id>
-          <username>${env.SYSTEM_USERNAME}</username>
-          <password>${env.SYSTEM_PASSWORD}</password>
-        </server>
-        <server>
-          <id>internal-releases</id>
-          <username>${env.SYSTEM_USERNAME}</username>
-          <password>${env.SYSTEM_PASSWORD}</password>
+          <id>external-releases</id>
+          <username>${env.NEXUS_USERNAME}</username>
+          <password>${env.NEXUS_PASSWORD}</password>
         </server>
       </servers>
+      <profiles>
+        <profile>
+          <id>release</id>
+          <properties>
+            <external.releases.url>${env.EXTERNAL_RELEASES_URL}</external.releases.url>
+          </properties>
+        </profile>
+      </profiles>
     </settings>
 kind: ConfigMap
 metadata:

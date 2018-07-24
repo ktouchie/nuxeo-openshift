@@ -1,0 +1,25 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  annotations:
+    openshift.io/generated-by: OpenShiftNewApp
+  generation: 2
+  labels:
+    app: nexus
+  name: nexus
+  namespace: ${NAMESPACE}
+  selfLink: /apis/image.openshift.io/v1/namespaces/${NAMESPACE}/imagestreams/nexus
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - annotations:
+        openshift.io/imported-from: sonatype/nexus
+      from:
+        kind: DockerImage
+        name: sonatype/nexus
+      generation: 2
+      importPolicy: {}
+      name: latest
+      referencePolicy:
+        type: Source

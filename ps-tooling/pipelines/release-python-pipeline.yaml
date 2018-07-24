@@ -29,6 +29,7 @@ spec:
                 def SSH_KEY = ""
                 def INSTANCE_CLID = ""
                 def HOME_JENKINS = ""
+                def EXTERNAL_RELEASES_URL = ""
 
                 node {
                     stage("Initialize") {
@@ -51,25 +52,11 @@ spec:
                 }
                 node("jenkins-slave") {
                     stage("Checkout Repository") {
-                      git url: "git@github.com:nuxeo-projects/${REPOSITORY}.git",
-                      credentialsId: "${PROJECT}-github-ssh",
-                      branch: "master"
+                        git url: "git@github.com:nuxeo-projects/${REPOSITORY}.git",
+                        credentialsId: "${PROJECT}-github-ssh",
+                        branch: "master"
                     }
                     stage("Setup workspace") {
-                        // Put instance.clid in ftests resources
-                        def ftests = findFiles(glob: "**/ftest/**/itests.xml")
-                        def clid = findFiles(glob: "**/ftest/**/instance.clid")
-                        if (ftests.length > 0) {
-                            def itestsPath = ftests[0].path
-                            def clidPath = itestsPath.replace("itests.xml", "src/main/resources/instance.clid")
-                            fileOperations([
-                                fileCreateOperation(
-                                    fileName: "${clidPath}",
-                                    fileContent: "${INSTANCE_CLID}"
-                                )
-                            ])
-                        }
-
                         // Put SSH key in .ssh/
                         fileOperations([
                             fileCreateOperation(
@@ -87,30 +74,49 @@ spec:
                         // Setup git config
                         sh "git config --global user.name ${GIT_USER_NAME}"
                         sh "git config --global user.email ${GIT_USER_EMAIL}"
+
+                        // Put instance.clid in ftests resources
+                        def ftests = findFiles(glob: "**/ftest/**/itests.xml")
+                        if (ftests.length > 0) {
+                            def itestsPath = ftests[0].path
+                            def clidPath = itestsPath.replace("itests.xml", "src/main/resources/instance.clid")
+                            fileOperations([
+                                fileCreateOperation(
+                                    fileName: "${clidPath}",
+                                    fileContent: "${INSTANCE_CLID}"
+                                )
+                            ])
+                        }
+
+                        // Get external releases repository URL
+                        sh "oc get route/nexus -o json > nexus-route.json"
+                        def nexusRoute = readJSON(file: "nexus-route.json")
+                        EXTERNAL_RELEASES_URL = "http://" + nexusRoute.spec.host + "/nexus/content/repositories/releases"
                     }
                     stage("Build Release") {
+                        // Download release script and put SSH key file in .ssh/
+                        def operations = []
+                        def files = ["release.py", "requirements.txt", "IndentedHelpFormatterWithNL.py", "nxutils.py", "terminalsize.py"]
+                        files.each { file -> operations.add(
+                            fileDownloadOperation(
+                                url: "https://raw.githubusercontent.com/nuxeo/nuxeo/master/scripts/${file}",
+                                userName: "",
+                                password: "",
+                                targetLocation: "",
+                                targetFileName: "${file}"
+                            )
+                        )}
+                        fileOperations(operations)
+
+                        // Launch release and deploy artifacts to Nexus
                         withCredentials([
                             usernamePassword(
-                                credentialsId: "${PROJECT}-system-credentials",
-                                usernameVariable: "SYSTEM_USERNAME",
-                                passwordVariable: "SYSTEM_PASSWORD"
+                                credentialsId: "${PROJECT}-nexus-credentials",
+                                usernameVariable: "NEXUS_USERNAME",
+                                passwordVariable: "NEXUS_PASSWORD"
                             )
                         ]) {
-                            // Download release script and put SSH key file in .ssh/
-                            def operations = []
-                            def files = ["release.py", "requirements.txt", "IndentedHelpFormatterWithNL.py", "nxutils.py", "terminalsize.py"]
-                            files.each { file -> operations.add(
-                                fileDownloadOperation(
-                                    url: "https://raw.githubusercontent.com/nuxeo/nuxeo/master/scripts/${file}",
-                                    userName: "",
-                                    password: "",
-                                    targetLocation: "",
-                                    targetFileName: "${file}"
-                                )
-                            )}
-                            fileOperations(operations)
-
-                            // Launch release
+                            env.EXTERNAL_RELEASES_URL = EXTERNAL_RELEASES_URL
                             withMaven() {
                                 sh "python ./release.py -f prepare"
                                 sh "python ./release.py perform"
@@ -120,10 +126,10 @@ spec:
                 }
             }
         } catch (err) {
-           echo "in catch block"
-           echo "Caught: ${err}"
-           currentBuild.result = 'FAILURE'
-           throw err
+            echo "in catch block"
+            echo "Caught: ${err}"
+            currentBuild.result = 'FAILURE'
+            throw err
         }
     type: JenkinsPipeline
   triggers: []
